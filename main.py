@@ -23,14 +23,14 @@ def assignment2():
     else:
         git.Repo.clone_from(remote_link, local_link, progress=Progress())
     repo = git.Repo(local_link)
-    # assignment2_part3a(repo)
+    assignment2_part3a(repo)
     frequently_identified_commit = assignment2_part3b(repo)
     vcc = assignment2_part3c(frequently_identified_commit)
-    # assignment2_part5a(repo, vcc)
-    # assignment2_part5b(repo, vcc)
-    # assignment2_part5c(repo, vcc)
-    # totals = assignment2_part5de(repo, vcc)
-    # assignment2_part5fg(repo, vcc, totals)
+    assignment2_part5a(repo, vcc)
+    assignment2_part5b(repo, vcc)
+    assignment2_part5c(repo, vcc)
+    totals = assignment2_part5de(repo, vcc)
+    assignment2_part5fg(repo, vcc, totals)
     assignment2_part5h(repo, vcc)
     assignment2_part5i(repo, vcc)
     all_authors = assignment2_part5j(repo, vcc)
@@ -183,7 +183,7 @@ def assignment2_part5k(repo, vcc, all_authors):
     for auth in all_authors.keys():
         for match in re.finditer(r'(?P<num>\d+)\s+(?P<name>' + re.escape(auth) + ')', git_output):
             print(match.group('name') + ' has ' + match.group('num') + ' commits')
- 
+
 if __name__ == '__main__':
     print('Assignment 2')
     assignment2()
