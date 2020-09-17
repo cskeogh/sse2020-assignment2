@@ -3,6 +3,7 @@ import os
 import os.path
 import re
 import util
+import datetime
 
 remote_link = "https://github.com/apache/cxf.git"
 local_link = "repo/cxf"
@@ -10,7 +11,6 @@ fixing_commit = "9deb2d179758d3da47ce3ea492c2606c0a6a8475"
 affected_files = \
     ["rt/rs/extensions/providers/src/main/java/org/apache/cxf/jaxrs/provider/atom/AbstractAtomProvider.java",
      "rt/rs/extensions/providers/src/test/java/org/apache/cxf/jaxrs/provider/atom/AtomPojoProviderTest.java"]
-frequently_identified_commit = {}
 
 class Progress(git.RemoteProgress):
     def update(self, op_code, cur_count, max_count=None, message=''):
@@ -23,17 +23,22 @@ def assignment2():
     else:
         git.Repo.clone_from(remote_link, local_link, progress=Progress())
     repo = git.Repo(local_link)
-    assignment2_part3a(repo)
-    assignment2_part3b(repo)
-    vcc = assignment2_part3c()
-    assignment2_part5a(repo, vcc)
-    assignment2_part5b(repo, vcc)
-    assignment2_part5c(repo, vcc)
-    totals = assignment2_part5de(repo, vcc)
-    assignment2_part5fg(repo, vcc, totals)
+    # assignment2_part3a(repo)
+    frequently_identified_commit = assignment2_part3b(repo)
+    vcc = assignment2_part3c(frequently_identified_commit)
+    # assignment2_part5a(repo, vcc)
+    # assignment2_part5b(repo, vcc)
+    # assignment2_part5c(repo, vcc)
+    # totals = assignment2_part5de(repo, vcc)
+    # assignment2_part5fg(repo, vcc, totals)
+    assignment2_part5h(repo, vcc)
+    assignment2_part5i(repo, vcc)
+    all_authors = assignment2_part5j(repo, vcc)
+    assignment2_part5k(repo, vcc, all_authors)
 
 def assignment2_part3a(repo):
     print("\nPart 3.a -- lines deleted, last commit that modified --")
+    frequently_identified_commit = {}
     blame_data = repo.git.blame("-L92,+1", fixing_commit + "^", "--", affected_files[0])
     for line in blame_data.splitlines():
         print(line)
@@ -45,11 +50,12 @@ def assignment2_part3a(repo):
         else:
             frequently_identified_commit[commit_id] += 1
         print(line)
-
+    return frequently_identified_commit
 
 def assignment2_part3b(repo):
     print("\nPart 3.b -- lines added, smallest enclosing scope ---------------------")
     added_line = 92
+    frequently_identified_commit = {}
     raw_file_contents = repo.git.show(fixing_commit + "^" + ":" + affected_files[0])
     enclosing_scope_lines = util.smallest_enclosing_scope(raw_file_contents, added_line)
 
@@ -63,11 +69,11 @@ def assignment2_part3b(repo):
         else:
             frequently_identified_commit[commit_id] += 1
         print(line)
+    return frequently_identified_commit
 
-
-def assignment2_part3c():
+def assignment2_part3c(frequently_identified_commit):
     print("\nPart 3.c -- frequently identified commit as the VCC ---------------------")
-    vcc = max(frequently_identified_commit,key=frequently_identified_commit.get)
+    vcc = max(frequently_identified_commit, key=frequently_identified_commit.get)
     print(vcc)
     return vcc
 
@@ -131,6 +137,53 @@ def assignment2_part5fg(repo, vcc, totals):
     print(str(totals['del']) + " total deleted lines of code (excluding comments and blank lines)")
     print(str(totals['add']) + " total added lines of code (excluding comments and blank lines)")
 
+
+def assignment2_part5h(repo, vcc):
+    print("\nPart 5.h -- days were between the current VCC and the previous commit  ---------------------")
+    for file in affected_files:
+        print(file)
+        git_output = repo.git.log(vcc, '-s', '--format=%aI', '--', file)
+        git_output = git_output.splitlines()[:2]
+        print('\n'.join(git_output))
+        date_new = datetime.datetime.fromisoformat(git_output[0])
+        date_old = datetime.datetime.fromisoformat(git_output[1])
+        timedelta = date_new - date_old
+        print(str(timedelta.days) + " days")
+
+
+def assignment2_part5i(repo, vcc):
+    print("\nPart 5.i -- time has each affected file of the current VCC been modified in the past -----")
+    for file in affected_files:
+        print(file)
+        git_output = repo.git.log(vcc, '-s', '--oneline', '--', file)
+        print(git_output)
+        number_times = len(git_output.splitlines())
+        print(str(number_times) + " times")
+
+def assignment2_part5j(repo, vcc):
+    print("\nPart 5.j -- Which developers have modified each affected file since its creation -----")
+    all_authors = {}
+    for file in affected_files:
+        print(file)
+        git_output = repo.git.log(vcc, '-s', '--format=%an', '--', file)
+        auths = {}
+        for auth in git_output.splitlines():
+            if auths.get(auth) is None:
+                auths[auth] = 1
+            else:
+                auths[auth] += 1
+            all_authors[auth] = None
+        for auth in auths.keys():
+            print(auth + " (" + str(auths[auth]) + " commits)")
+    return all_authors
+
+def assignment2_part5k(repo, vcc, all_authors):
+    print("\nPart 5.k -- For each developer, how many commits have each of them submitted -----")
+    git_output = repo.git.shortlog('--summary', '--numbered', '--all', '--no-merges')
+    for auth in all_authors.keys():
+        for match in re.finditer(r'(?P<num>\d+)\s+(?P<name>' + re.escape(auth) + ')', git_output):
+            print(match.group('name') + ' has ' + match.group('num') + ' commits')
+ 
 if __name__ == '__main__':
     print('Assignment 2')
     assignment2()
