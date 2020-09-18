@@ -276,4 +276,8 @@ index 0296764b5d..025748c0de 100644
      public void testReadEntryNoContent() throws Exception {
          /** A sample entry without content. */
 """
-    util.added_deleted_from_diff(string)
+    retval = util.added_deleted_from_diff(string)
+    for i in retval.keys():
+        print(i)
+        print("  " + str(retval[i].added))
+        print("  " + str(retval[i].deleted))

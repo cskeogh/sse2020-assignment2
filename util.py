@@ -1,32 +1,120 @@
 import re
+import enum
+
+
+class ChangedData:
+    def __init__(self):
+        self._added = []
+        self._deleted = []
+
+    @property
+    def added(self):
+        return self._added
+
+    @property
+    def deleted(self):
+        return self._deleted
+
 
 def added_deleted_from_diff(string):
-#    for filematch in re.finditer(r'^\-\-\- a/(?P<filename>.+)$', string, re.MULTILINE):
-    pos_marker = re.compile(r'\@\@ -(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@')
-    prevmatch = None
-    for filematch in re.finditer(r'diff .*\nindex .*\n\-\-\- a/(?P<origfile>.+)\n\+\+\+ b/(?P<newfile>.+)\n', string):
-        if prevmatch is not None:
-            print(prevmatch.end('newfile')+1)
-            print(filematch.start()-1)
-            print(string[prevmatch.end('newfile')+1:filematch.start()-1])
-            print('---------')
-        prevmatch = filematch
-    if prevmatch is not None:
-        print(prevmatch.end('newfile')+1)
-        print('eof')
-        print(string[prevmatch.end('newfile')+1:])
-        print('---------')
+    pos_re = re.compile(r'\@\@ -(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@')
+    file_re = re.compile(r'diff .*\nindex .*\n\-\-\- a/(?P<origfile>.+)\n\+\+\+ b/(?P<newfile>.+)\n')
 
-        #
-        # print(filematch.group('origfile'))
-        # print(filematch.group('newfile'))
-        # print(filematch.group('body'))
-        # for chunk in pos_marker.finditer(filematch.group('body')):
-        #     print('---->' + chunk.group('origstart'))
+    class CodeModes(enum.Enum):
+        UNCHANGED = 1
+        ADDED = 2
+        DELETED = 3
 
-#    for match in re.finditer(r'\@\@ \-(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@',
-#        string):
+    def code_parse(code_lines, origstart, newstart):
+        retval = ChangedData()
+        code_iter = iter(code_lines)
+        orig_row_count = origstart - 1  # the @@ -30,6 +30,7 @@ don't include the code on the same line as the @@
+        new_row_count = newstart - 1
+        block_count = 0
+        mode = CodeModes.UNCHANGED
+        try:
+            while True:
+                code = next(code_iter)
+                if code[0] == '+':
+                    if mode == CodeModes.UNCHANGED:
+                        block_count = 1
+                        mode = CodeModes.ADDED
+                    elif mode == CodeModes.ADDED:
+                        block_count += 1
+                    elif mode == CodeModes.DELETED:
+                        retval.deleted.append((orig_row_count - block_count, block_count))
+                        mode = CodeModes.ADDED
+                        block_count = 1
+                    new_row_count += 1
+                elif code[0] == '-':
+                    if mode == CodeModes.UNCHANGED:
+                        block_count = 1
+                        mode = CodeModes.DELETED
+                    elif mode == CodeModes.ADDED:
+                        retval.added.append((new_row_count - block_count, block_count))
+                        mode = CodeModes.ADDED
+                        block_count = 1
+                    elif mode == CodeModes.DELETED:
+                        block_count += 1
+                    orig_row_count += 1
+                elif code[0] == ' ':
+                    if mode == CodeModes.UNCHANGED:
+                        block_count = 1
+                    elif mode == CodeModes.ADDED:
+                        retval.added.append((new_row_count - block_count, block_count))
+                        mode = CodeModes.UNCHANGED
+                        block_count = 1
+                    elif mode == CodeModes.DELETED:
+                        retval.deleted.append((orig_row_count - block_count, block_count))
+                        mode = CodeModes.UNCHANGED
+                        block_count = 1
+                    orig_row_count += 1
+                    new_row_count += 1
+        except StopIteration:
+            pass
+        return retval
 
+    def diff_parse(diff_str, new_filename):
+        diff_iter = iter(pos_re.split(diff_str))
+        retval = ChangedData()
+        try:
+            while True:
+                chunk = next(diff_iter)
+                if chunk == '':
+                    chunk = next(diff_iter)
+                orig_start = int(chunk)
+                orig_count = int(next(diff_iter))
+                new_start = int(next(diff_iter))
+                new_count = int(next(diff_iter))
+                code_lines = next(diff_iter).splitlines()
+                new_delete_lines = code_parse(code_lines, orig_start, new_start)
+                if len(new_delete_lines.added) > 0:
+                    retval.added.append(new_delete_lines.added)
+                if len(new_delete_lines.deleted) > 0:
+                    retval.deleted.append(new_delete_lines.deleted)
+                pass
+        except StopIteration:
+            pass
+        return retval
+
+    def file_parse(file_str):
+        retval = {}
+        file_iter = iter(file_re.split(file_str))
+        try:
+            while True:
+                chunk = next(file_iter)
+                if chunk == '':
+                    chunk = next(file_iter)
+                old_filename = chunk
+                new_filename = next(file_iter)
+                diff_str = next(file_iter)
+
+                retval[new_filename] = diff_parse(diff_str, new_filename)
+        except StopIteration:
+            pass
+        return retval
+
+    return file_parse(string)
 
 def smallest_enclosing_scope(string, line_number):
     enclosing_scope_lines = [0, 0]
