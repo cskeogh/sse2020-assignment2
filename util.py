@@ -11,10 +11,17 @@ class ChangedData:
     def added(self):
         return self._added
 
+    @added.setter
+    def added(self, x):
+        self._added = x
+
     @property
     def deleted(self):
         return self._deleted
 
+    @deleted.setter
+    def deleted(self, x):
+        self._deleted = x
 
 def added_deleted_from_diff(string):
     pos_re = re.compile(r'\@\@ -(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@')
@@ -88,11 +95,8 @@ def added_deleted_from_diff(string):
                 new_count = int(next(diff_iter))
                 code_lines = next(diff_iter).splitlines()
                 new_delete_lines = code_parse(code_lines, orig_start, new_start)
-                if len(new_delete_lines.added) > 0:
-                    retval.added.append(new_delete_lines.added)
-                if len(new_delete_lines.deleted) > 0:
-                    retval.deleted.append(new_delete_lines.deleted)
-                pass
+                retval.added += new_delete_lines.added
+                retval.deleted += new_delete_lines.deleted
         except StopIteration:
             pass
         return retval
@@ -118,6 +122,7 @@ def added_deleted_from_diff(string):
 
 def smallest_enclosing_scope(string, line_number):
     enclosing_scope_lines = [0, 0]
+    #method_sig_re = re.compile(r"(\@\S+\s*\n)?\s*(public|protected|private|static) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+)?\s*\{")
     method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+)?\s*\{")
     bracket_re = re.compile(r"\{|\}")
 
@@ -125,6 +130,8 @@ def smallest_enclosing_scope(string, line_number):
     closest_method_sig = None
     for closest_method_sig in matches:
         pass
+    if closest_method_sig is None:
+        raise ValueError("No enclosing scope found")
     enclosing_scope_lines[0] = string.count('\n', 0, closest_method_sig.start()) + 1
 
     matches = bracket_re.finditer(string, closest_method_sig.end())
@@ -143,3 +150,8 @@ def smallest_enclosing_scope(string, line_number):
 
     enclosing_scope_lines[1] = string.count('\n', closest_method_sig.start(), end_method_sig.end()) + 1
     return enclosing_scope_lines
+
+def merge_two_dicts(x, y):
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z
