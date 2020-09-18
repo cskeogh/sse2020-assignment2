@@ -1,5 +1,33 @@
 import re
 
+def added_deleted_from_diff(string):
+#    for filematch in re.finditer(r'^\-\-\- a/(?P<filename>.+)$', string, re.MULTILINE):
+    pos_marker = re.compile(r'\@\@ -(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@')
+    prevmatch = None
+    for filematch in re.finditer(r'diff .*\nindex .*\n\-\-\- a/(?P<origfile>.+)\n\+\+\+ b/(?P<newfile>.+)\n', string):
+        if prevmatch is not None:
+            print(prevmatch.end('newfile')+1)
+            print(filematch.start()-1)
+            print(string[prevmatch.end('newfile')+1:filematch.start()-1])
+            print('---------')
+        prevmatch = filematch
+    if prevmatch is not None:
+        print(prevmatch.end('newfile')+1)
+        print('eof')
+        print(string[prevmatch.end('newfile')+1:])
+        print('---------')
+
+        #
+        # print(filematch.group('origfile'))
+        # print(filematch.group('newfile'))
+        # print(filematch.group('body'))
+        # for chunk in pos_marker.finditer(filematch.group('body')):
+        #     print('---->' + chunk.group('origstart'))
+
+#    for match in re.finditer(r'\@\@ \-(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@',
+#        string):
+
+
 def smallest_enclosing_scope(string, line_number):
     enclosing_scope_lines = [0, 0]
     method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+)?\s*\{")
