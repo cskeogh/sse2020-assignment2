@@ -3,6 +3,11 @@ import enum
 
 
 class ChangedData:
+    """
+    Class for storing added/deleted row data
+    obj.added a list of all the additions, as tuple pairs: row number (int), and number of consecutive rows added
+    obj.deleted a list of all the deletions, as tuple pairs: row number (int), and number of consecutive rows deleted
+    """
     def __init__(self):
         self._added = []
         self._deleted = []
@@ -24,6 +29,15 @@ class ChangedData:
         self._deleted = x
 
 def added_deleted_from_diff(string):
+    """
+    Returns a ChangedData object with added/deleted row data for the diff in 'string'
+    :param string: str of the diff
+    :return: util.ChangedData object with:
+             obj.added a list of all the additions, as tuple pairs: row number (int), and number of consecutive rows
+             added
+             obj.deleted a list of all the deletions, as tuple pairs: row number (int), and number of consecutive rows
+             deleted
+    """
     pos_re = re.compile(r'\@\@ -(?P<origstart>\d+),(?P<origcount>\d+) \+(?P<newstart>\d+),(?P<newcount>\d+) \@\@')
     file_re = re.compile(r'diff .*\nindex .*\n\-\-\- a/(?P<origfile>.+)\n\+\+\+ b/(?P<newfile>.+)\n')
 
@@ -42,7 +56,9 @@ def added_deleted_from_diff(string):
         try:
             while True:
                 code = next(code_iter)
-                if code[0] == '+':
+                if code == "":
+                    pass
+                elif code[0] == '+':
                     if mode == CodeModes.UNCHANGED:
                         block_count = 1
                         mode = CodeModes.ADDED
@@ -121,8 +137,16 @@ def added_deleted_from_diff(string):
     return file_parse(string)
 
 def smallest_enclosing_scope(string, added):
+    """
+    Finds the smallest enclosing scope of the code in 'string', using the row number in 'added'
+    :param string: java code as a str
+    :param added: a list of two values: row number (int), and number of consecutive rows added
+    :return: a list of two values: the row number (int) of the start of the enclosing scope, the row number (int) of
+    the end of the enclosing scope,
+    """
     enclosing_scope_lines = [0, 0]
-    method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+(?:\s*,\s*[\w.]+)*)?\s*\{")
+    method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)" +
+                               r"(?:\s*throws [\w.]+(?:\s*,\s*[\w.]+)*)?\s*\{")
     bracket_re = re.compile(r"\{|\}")
 
     string_split = string.splitlines()
@@ -177,6 +201,7 @@ def is_added_a_whole_enclosing_scope(string, added):
     if decorator_re.match(string_split[local_added[0] - 1]):
         # skip over decorators (e.g. @Test)
         local_added[0] += 1
+        local_added[1] -= 1
     try:
         enclosing_scope = smallest_enclosing_scope(string, local_added)
         return local_added == enclosing_scope
@@ -184,6 +209,12 @@ def is_added_a_whole_enclosing_scope(string, added):
         return False
 
 def merge_two_dicts(x, y):
+    """
+    Merge two dictionaries and returns the result
+    :param x: dictionary
+    :param y: dictionary
+    :return: the merged dictionary
+    """
     z = x.copy()   # start with x's keys and values
     z.update(y)    # modifies z with y's keys and values & returns None
     return z
