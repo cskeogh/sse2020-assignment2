@@ -4,7 +4,8 @@ import os.path
 import re
 import util
 import datetime
-import pprint
+import logging
+import sys
 
 remote_link = "https://github.com/apache/cxf.git"
 local_link = "repo/cxf"
@@ -281,7 +282,7 @@ def assignment2_part5i(repo, vcc, added_deleted):
     """
     print("\nPart 5.i -- number of times has each affected file of the current VCC been modified in the past -----")
     for file in added_deleted.keys():
-        git_output = repo.git.log(vcc, '-s', '--oneline', '--', file)
+        git_output = repo.git.log(vcc, '-M', '-s', '--oneline', '--', file)
         if git_output.strip() == '':
             print(file + " is an added file. No previous commit available")
             continue
@@ -303,7 +304,7 @@ def assignment2_part5j(repo, vcc, added_deleted):
     all_authors = {}
     for file in added_deleted.keys():
         print(file)
-        git_output = repo.git.log(vcc, '-s', '--format=%an', '--', file)
+        git_output = repo.git.log(vcc, '-M', '-s', '--format=%an', '--', file)
         auths = {}
         for auth in git_output.splitlines():
             if auths.get(auth) is None:
@@ -330,4 +331,5 @@ def assignment2_part5k(repo, all_authors):
 
 if __name__ == '__main__':
     print('Secure Software Engineering COMP SCI 4412 Assignment 2')
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     assignment2()
