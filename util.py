@@ -120,13 +120,13 @@ def added_deleted_from_diff(string):
 
     return file_parse(string)
 
-def smallest_enclosing_scope(string, line_number):
+def smallest_enclosing_scope(string, added):
     enclosing_scope_lines = [0, 0]
-    #method_sig_re = re.compile(r"(\@\S+\s*\n)?\s*(public|protected|private|static) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+)?\s*\{")
-    method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+)?\s*\{")
+    method_sig_re = re.compile(r"(public|protected|private|static|\s) +[\w\<\>\[\]]+\s+(\w+) *\([^\)]*\)(?:\s*throws [\w.]+(?:\s*,\s*[\w.]+)*)?\s*\{")
     bracket_re = re.compile(r"\{|\}")
 
-    matches = method_sig_re.finditer('\n'.join(string.splitlines()[:line_number]))
+    string_split = string.splitlines()
+    matches = method_sig_re.finditer('\n'.join(string_split[:added[0]]))
     closest_method_sig = None
     for closest_method_sig in matches:
         pass
@@ -150,6 +150,38 @@ def smallest_enclosing_scope(string, line_number):
 
     enclosing_scope_lines[1] = string.count('\n', closest_method_sig.start(), end_method_sig.end()) + 1
     return enclosing_scope_lines
+
+def is_added_a_whole_enclosing_scope(string, added):
+    """
+    If the 'added' chunk is a whole enclosing scope - e.g. a added an entire new method
+    :param string: the code
+    :param added: list of 2 ints, the added line and the number of lines in the chunk
+    :return: True if 'added' chunk is a whole enclosing scope, False otherwise
+    """
+    local_added = list(added)
+    decorator_re = re.compile(r"^\s*@[a-zA-Z]\w*\s*$")
+    string_split = string.splitlines()
+    # strip blank lines
+    for i in range(added[0] - 1, added[0] + added[1]):
+        if string_split[i].strip() == '':
+            local_added[0] += 1
+            local_added[1] -= 1
+        else:
+            break
+    for i in range(local_added[0] - 1 + local_added[1] - 1, local_added[0] - 1, -1):
+        if string_split[i].strip() == '':
+            local_added[1] -= 1
+        else:
+            break
+
+    if decorator_re.match(string_split[local_added[0] - 1]):
+        # skip over decorators (e.g. @Test)
+        local_added[0] += 1
+    try:
+        enclosing_scope = smallest_enclosing_scope(string, local_added)
+        return local_added == enclosing_scope
+    except ValueError:
+        return False
 
 def merge_two_dicts(x, y):
     z = x.copy()   # start with x's keys and values
